@@ -1,6 +1,6 @@
 ﻿using System;
-using System.Threading;
 using helpers.CS;
+using System.Threading;
 using System.Diagnostics;
 
 namespace CS_GLOW
@@ -8,10 +8,12 @@ namespace CS_GLOW
     class Program
     {
         //menu
-        static bool HACK = true;
+        static bool HACK = false;
         static bool bHACK = false;
+        static bool bRAPID = false;
         static bool bESP = false;
         static string sESP = " ";
+        static string sRAPID = " ";
 
         //mem
         static int i;
@@ -36,10 +38,13 @@ namespace CS_GLOW
             start: Process[] csgo = Process.GetProcessesByName("csgo");
             if (csgo.Length > 0)
             {
-                func._menu(sESP);
+                func._menu(sESP, sRAPID);
                 mem.ProcessHandle = mem.OpenProcess(0x0008 | 0x0010 | 0x0020, false, csgo[0].Id);
                 client = tools.GetModuleBaseAddress(csgo[0], "client.dll");
                 engine = tools.GetModuleBaseAddress(csgo[0], "engine.dll");
+                Thread RAPID_FIRE = new Thread(_rapidFire) { IsBackground = true }; //asynchronous??
+                RAPID_FIRE.Start();
+                HACK = true;
             }
             else
             {
@@ -50,7 +55,7 @@ namespace CS_GLOW
                     Process[] csgo_failed = Process.GetProcessesByName("csgo");
                     if (csgo_failed.Length > 0)
                     {
-                        Thread.Sleep(3000);//Wait for client.dll & engine.dll to be loaded into csgo.
+                        Thread.Sleep(3000); //Wait for client.dll & engine.dll to be loaded into csgo.
                         goto start;
                     }
                     Thread.Sleep(5000);
@@ -62,6 +67,8 @@ namespace CS_GLOW
                 //Establish Keybinds
                 short keyEND = func.GetAsyncKeyState(func.VK_END);
                 short keyNUM1 = func.GetAsyncKeyState(func.VK_NUMPAD1);
+                short keyNUM2 = func.GetAsyncKeyState(func.VK_NUMPAD2);
+                short keySHIFT = func.GetAsyncKeyState(func.VK_LSHIFT);
 
                 if ((keyNUM1 & 1) == 1)
                 {
@@ -70,14 +77,30 @@ namespace CS_GLOW
                     if (bESP)
                     {
                         sESP = "X";
-                        func._menu(sESP);
+                        func._menu(sESP, sRAPID);
                         bHACK = true;
                     }
                     else
                     {
                         sESP = " ";
-                        func._menu(sESP);
+                        func._menu(sESP, sRAPID);
                         bHACK = false;
+                    }
+                }
+
+                if ((keyNUM2 & 1) == 1)
+                {
+                    bRAPID = !bRAPID;
+
+                    if (bRAPID)
+                    {
+                        sRAPID = "X";
+                        func._menu(sESP, sRAPID);
+                    }
+                    else
+                    {
+                        sRAPID = " ";
+                        func._menu(sESP, sRAPID);
                     }
                 }
 
@@ -101,10 +124,18 @@ namespace CS_GLOW
                         Thread.Sleep(5000);
 
                         //Disable Hack
-                        bHACK = false;
-                        bESP = false;
-                        sESP = " ";
-                        func._menu(sESP);
+                        if (bESP)
+                        {
+                            sESP = " ";
+                            bESP = false;
+                            bHACK = false;
+                        }
+                        if (bRAPID)
+                        {
+                            sRAPID = " ";
+                            bRAPID = false;
+                        }
+                        func._menu(sESP, sRAPID);
                         continue;
                     }
 
@@ -129,13 +160,28 @@ namespace CS_GLOW
                         }
                     }
                 }
+
                 Thread.Sleep(1);
+            }
+        }
+
+        private static void _rapidFire(object obj)
+        {
+            while (true)
+            {
+                if (bRAPID)
+                {
+                    //Mouse Button 3
+                    if (func.GetAsyncKeyState(func.VK_XBUTTON1) < 0)
+                    {
+                        func._rFIRE(65);
+                    }
+                }
             }
         }
 
         public static void _status()
         {
-            int localPlayer = mem.ReadMemory<int>(client + offsets.LocalPlayer);
             int clientState = mem.ReadMemory<int>(engine + offsets.ClientState);
             _maxPlayers = mem.ReadMemory<int>(clientState + offsets.ClientState_MaxPlayer);
         }
